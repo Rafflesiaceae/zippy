@@ -455,7 +455,8 @@ proc extractAll*(
 when (NimMajor, NimMinor, NimPatch) >= (1, 6, 0):
   # For some reason `sink Table | OrderedTable` does not work, so work around:
   template createZipArchiveImpl(
-    entries: var Table[string, string] | var OrderedTable[string, string]
+    entries: var Table[string, string] | var OrderedTable[string, string],
+    deterministic = false,
   ) =
 
     proc add16(dst: var string, v: int16 | uint16) =
@@ -493,7 +494,11 @@ when (NimMajor, NimMinor, NimPatch) >= (1, 6, 0):
 
       (time, date)
 
-    let (lastModifiedTime, lastModifiedDate) = msdos(getTime())
+    let (lastModifiedTime, lastModifiedDate) = if deterministic:
+      # https://github.com/bazelbuild/rules_pkg/blob/21e1cccbc36cc2995b9f31616783da5533a91c47/pkg/private/zip/build_zip.py#L26
+      msdos(initTime(315532800, 0))
+    else:
+      msdos(getTime())
 
     type ArchiveEntry = object
       fileHeaderOffset: int
@@ -624,11 +629,13 @@ when (NimMajor, NimMinor, NimPatch) >= (1, 6, 0):
     result.add16(0)
 
   proc createZipArchive*(
-    entries: sink Table[string, string]
+    entries: sink Table[string, string],
+    deterministic = false,
   ): string {.raises: [ZippyError].} =
     createZipArchiveImpl(entries)
 
   proc createZipArchive*(
-    entries: sink OrderedTable[string, string]
+    entries: sink OrderedTable[string, string],
+    deterministic = false,
   ): string {.raises: [ZippyError].} =
     createZipArchiveImpl(entries)
